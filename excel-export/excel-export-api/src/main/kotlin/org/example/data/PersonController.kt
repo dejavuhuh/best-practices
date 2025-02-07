@@ -1,6 +1,7 @@
 package org.example.data
 
 import org.babyfish.jimmer.sql.kt.KSqlClient
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
@@ -8,7 +9,10 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
 @RestController
-class PersonController(val sqlClient: KSqlClient) {
+class PersonController(
+    val sqlClient: KSqlClient,
+    val jdbcTemplate: JdbcTemplate
+) {
 
     @PostMapping("/mock-huge-data")
     fun mockHugeData(@RequestBody options: Options) {
@@ -29,26 +33,48 @@ class PersonController(val sqlClient: KSqlClient) {
         (0 until options.count)
             .asSequence()
             .chunked(chunkSize)
-            .map {
-                it.map { index ->
-                    Person {
-                        this.name = names[index % names.size]
-                        this.age = ages[index % ages.size]
-                        this.email = emails[index % emails.size]
-                        this.phone = phones[index % phones.size]
-                        this.address = addresses[index % addresses.size]
-                        this.city = cities[index % cities.size]
-                        this.state = states[index % states.size]
-                        this.zip = zips[index % zips.size]
-                        this.country = countries[index % countries.size]
-                        this.createdAt = Instant.parse(createdAt[index % createdAt.size])
-                        this.updatedAt = Instant.parse(updatedAt[index % updatedAt.size])
-                    }
-                }
-            }
-            .forEach {
+            .forEachIndexed { chunkIndex, it ->
                 Thread.ofVirtual().start {
-                    sqlClient.insertEntities(it)
+
+                    // Use JdbcTemplate
+                    // jdbcTemplate.batchUpdate(
+                    //     "INSERT INTO person (name, age, email, phone, address, city, state, zip, country, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    //     it.map { index ->
+                    //         arrayOf(
+                    //             names[index % names.size],
+                    //             ages[index % ages.size],
+                    //             emails[index % emails.size],
+                    //             phones[index % phones.size],
+                    //             addresses[index % addresses.size],
+                    //             cities[index % cities.size],
+                    //             states[index % states.size],
+                    //             zips[index % zips.size],
+                    //             countries[index % countries.size],
+                    //             Timestamp.from(Instant.parse(createdAt[index % createdAt.size])),
+                    //             Timestamp.from(Instant.parse(updatedAt[index % updatedAt.size]))
+                    //         )
+                    //     }
+                    // )
+
+                    // Use Jimmer
+                    val data = it.map { index ->
+                        Person {
+                            this.id = chunkIndex * chunkSize + index.toLong()
+                            this.name = names[index % names.size]
+                            this.age = ages[index % ages.size]
+                            this.email = emails[index % emails.size]
+                            this.phone = phones[index % phones.size]
+                            this.address = addresses[index % addresses.size]
+                            this.city = cities[index % cities.size]
+                            this.state = states[index % states.size]
+                            this.zip = zips[index % zips.size]
+                            this.country = countries[index % countries.size]
+                            this.createdAt = Instant.parse(createdAt[index % createdAt.size])
+                            this.updatedAt = Instant.parse(updatedAt[index % updatedAt.size])
+                        }
+                    }
+                    sqlClient.insertEntities(data)
+
                     completed.addAndGet(it.size)
                     println("Progress: ${completed.get()} / ${options.count}")
                 }
