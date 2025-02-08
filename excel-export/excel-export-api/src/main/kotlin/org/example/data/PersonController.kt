@@ -54,7 +54,7 @@ class PersonController(
             "San Antonio",
             "San Diego",
             "Dallas",
-            "San Jose"
+            "San Jose",
         )
         val states = listOf("NY", "CA", "IL", "TX", "AZ", "PA", "TX", "CA", "TX", "CA")
         val zips = listOf("10001", "90001", "60601", "77001", "85001", "19101", "78201", "92101", "75201", "95101")
@@ -85,7 +85,8 @@ class PersonController(
         )
 
         val completed = AtomicInteger()
-        val chunkSize = options.size / maximumPoolSize
+        // val chunkSize = options.size / maximumPoolSize
+        val chunkSize = 1000
         (0 until options.size)
             .asSequence()
             .chunked(chunkSize)
@@ -112,8 +113,7 @@ class PersonController(
                         }
                     )
 
-                    completed.addAndGet(it.size)
-                    println("Progress: ${completed.get()} / ${options.size}")
+                    println("Progress: ${completed.addAndGet(it.size)} / ${options.size}")
                 }
             }
     }
