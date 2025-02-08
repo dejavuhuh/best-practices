@@ -32,6 +32,8 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     runtimeOnly("org.postgresql:postgresql")
     ksp(jimmers.ksp)
+    implementation("org.apache.poi:poi:5.4.0")
+    implementation("org.apache.poi:poi-ooxml:5.4.0")
 }
 
 kotlin {
