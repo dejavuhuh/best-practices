@@ -51,4 +51,9 @@ class ExportController(
 
     @GetMapping("/status")
     fun status(@RequestParam taskId: Long) = exportEventChannel.subscribe(taskId)
+
+    @GetMapping("/tasks")
+    fun tasks(): List<ExportTask> {
+        TODO()
+    }
 }

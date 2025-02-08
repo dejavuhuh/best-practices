@@ -14,15 +14,13 @@ interface ExportTask {
 
     val downloadFileName: String
 
-    @Default("PENDING")
+    @Default("RUNNING")
     val state: ExportState
 
     val finishedAt: Instant?
 }
 
 enum class ExportState {
-    PENDING,
     RUNNING,
     COMPLETED,
-    FAILED
 }
