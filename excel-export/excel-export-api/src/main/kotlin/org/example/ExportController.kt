@@ -37,9 +37,9 @@ class ExportController(
                 jdbcTemplate
                     .queryForStream("SELECT * FROM person", ColumnMapRowMapper())
                     .asSequence()
-                    .chunked(2000)
+                    .chunked(10000)
                     .forEach {
-                        Thread.sleep(20)
+                        Thread.sleep(10)
                         current += it.size
                         val progress = (current * 100 / total)
                         redisTemplate.convertAndSend("export:$taskId", progress.toString())

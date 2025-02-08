@@ -30,6 +30,10 @@ class ExportEventChannel : MessageListener {
 
         subscribers[taskId]?.forEach {
             it.send(progress)
+
+            if (progress == "100") {
+                it.complete()
+            }
         }
     }
 }
