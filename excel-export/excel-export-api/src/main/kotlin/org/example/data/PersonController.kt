@@ -86,11 +86,11 @@ class PersonController(
 
         val completed = AtomicInteger()
         // val chunkSize = options.size / maximumPoolSize
-        val chunkSize = 1000
-        (0 until options.size)
+        val chunkSize = 10000
+        val threads = (0 until options.size)
             .asSequence()
             .chunked(chunkSize)
-            .forEach {
+            .map {
                 Thread.ofVirtual().start {
 
                     // Use JdbcTemplate
@@ -116,6 +116,9 @@ class PersonController(
                     println("Progress: ${completed.addAndGet(it.size)} / ${options.size}")
                 }
             }
+            .toList()
+
+        threads.forEach(Thread::join)
     }
 
     data class Options(val size: Int)
