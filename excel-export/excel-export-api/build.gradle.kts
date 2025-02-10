@@ -34,6 +34,7 @@ dependencies {
     ksp(jimmers.ksp)
     implementation("org.apache.poi:poi:5.4.0")
     implementation("org.apache.poi:poi-ooxml:5.4.0")
+    implementation("io.minio:minio:8.5.17")
 }
 
 kotlin {

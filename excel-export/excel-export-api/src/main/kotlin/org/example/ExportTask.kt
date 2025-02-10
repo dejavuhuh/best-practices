@@ -10,8 +10,6 @@ interface ExportTask {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long
 
-    val s3ObjectKey: String?
-
     val downloadFileName: String
 
     @Default("RUNNING")

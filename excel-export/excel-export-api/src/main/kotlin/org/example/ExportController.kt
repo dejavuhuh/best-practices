@@ -1,5 +1,8 @@
 package org.example
 
+import io.minio.GetPresignedObjectUrlArgs
+import io.minio.MinioClient
+import io.minio.http.Method
 import org.apache.poi.ss.usermodel.Row
 import org.apache.poi.xssf.streaming.DeferredSXSSFWorkbook
 import org.babyfish.jimmer.sql.kt.KSqlClient
@@ -8,9 +11,11 @@ import org.springframework.jdbc.core.ColumnMapRowMapper
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.queryForObject
 import org.springframework.web.bind.annotation.*
-import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URI
 import java.sql.Timestamp
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 import kotlin.streams.asSequence
 
 @RestController
@@ -21,6 +26,11 @@ class ExportController(
     val redisTemplate: StringRedisTemplate,
     val exportEventChannel: ExportEventChannel
 ) {
+
+    val minioClient: MinioClient = MinioClient.builder()
+        .endpoint("http://localhost:9000")
+        .credentials("uBuOzGYe7K9ebxM8uxkU", "5ePr46DXqaJlEE3pmjbxASHeAaJaNFjGjpgq5XyO")
+        .build()
 
     data class AsyncExportRequest(
         val downloadFileName: String
@@ -71,11 +81,22 @@ class ExportController(
             }
 
             // upload file to S3
-            FileOutputStream("data.xlsx").use { wb.write(it) }
+            val url = minioClient.getPresignedObjectUrl(
+                GetPresignedObjectUrlArgs.builder()
+                    .method(Method.PUT)
+                    .bucket("export")
+                    .`object`("$taskId")
+                    .expiry(5, TimeUnit.MINUTES)
+                    .build()
+            )
+            val connection = URI.create(url).toURL().openConnection() as HttpURLConnection
+            connection.doOutput = true
+            connection.setRequestMethod("PUT")
+            connection.outputStream.use { wb.write(it) }
+            connection.responseCode
 
             sqlClient.update(ExportTask {
                 id = taskId
-                s3ObjectKey = "xxx"
                 finishedAt = Instant.now()
                 state = ExportState.COMPLETED
             })
