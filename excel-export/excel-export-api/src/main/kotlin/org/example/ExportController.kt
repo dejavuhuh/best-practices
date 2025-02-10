@@ -13,6 +13,8 @@ import org.springframework.jdbc.core.queryForObject
 import org.springframework.web.bind.annotation.*
 import java.net.HttpURLConnection
 import java.net.URI
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.sql.Timestamp
 import java.time.Instant
 import java.util.concurrent.TimeUnit
@@ -143,12 +145,23 @@ class ExportController(
 
     @GetMapping("/url")
     fun url(@RequestParam taskId: Long): String {
+        val task = sqlClient.findOneById(ExportTask::class, taskId)
         return minioClient.getPresignedObjectUrl(
             GetPresignedObjectUrlArgs.builder()
                 .method(Method.GET)
                 .bucket("export")
                 .`object`("$taskId")
                 .expiry(5, TimeUnit.MINUTES)
+                .extraQueryParams(
+                    mapOf(
+                        "response-content-disposition" to "attachment; filename*=UTF-8''${
+                            URLEncoder.encode(
+                                "${task.downloadFileName}.xlsx",
+                                StandardCharsets.UTF_8
+                            )
+                        }"
+                    )
+                )
                 .build()
         )
     }

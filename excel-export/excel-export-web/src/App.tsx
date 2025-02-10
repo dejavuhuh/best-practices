@@ -39,7 +39,6 @@ export default function ButtonUsage() {
   async function download(task: Task) {
     const url = await wretch(`/api/export/url?taskId=${task.id}`).get().text()
     const a = document.createElement('a')
-    a.download = `${task.downloadFileName}.xlsx`
     a.href = url
     a.click()
     a.remove()
