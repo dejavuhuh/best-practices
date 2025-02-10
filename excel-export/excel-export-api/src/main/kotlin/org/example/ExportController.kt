@@ -1,7 +1,7 @@
 package org.example
 
 import org.apache.poi.ss.usermodel.Row
-import org.apache.poi.xssf.streaming.SXSSFWorkbook
+import org.apache.poi.xssf.streaming.DeferredSXSSFWorkbook
 import org.babyfish.jimmer.sql.kt.KSqlClient
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.jdbc.core.ColumnMapRowMapper
@@ -38,45 +38,50 @@ class ExportController(
         })
         val taskId = insertResult.modifiedEntity.id
 
-        val chunkSize = 10000
         Thread
             .ofVirtual()
             .start {
-                var current = 0L
-
-                SXSSFWorkbook(1000).use { wb ->
-                    val sh = wb.createSheet("人员信息")
-                    jdbcTemplate
-                        .queryForStream("SELECT * FROM person", ColumnMapRowMapper())
-                        .asSequence()
-                        .chunked(chunkSize)
-                        .forEachIndexed { chunkIndex, chunk ->
-                            // write data to excel
-                            for ((index, person) in chunk.withIndex()) {
-                                val row = sh.createRow(chunkIndex * chunkSize + index)
-                                fillRow(row, person)
-                            }
-
-                            current += chunk.size
-                            val progress = (current * 98 / total)
-                            redisTemplate.convertAndSend("export:$taskId", progress.toString())
-                        }
-
-                    // upload file to S3
-                    FileOutputStream("data.xlsx").use { wb.write(it) }
-
-                    sqlClient.update(ExportTask {
-                        id = taskId
-                        s3ObjectKey = "xxx"
-                        finishedAt = Instant.now()
-                        state = ExportState.COMPLETED
-                    })
-                }
-
-                redisTemplate.convertAndSend("export:$taskId", "100")
+                asyncRun(total, taskId)
             }
 
         return taskId
+    }
+
+    private fun asyncRun(total: Long, taskId: Long) {
+        var current = 0L
+        val chunkSize = 10000
+
+        DeferredSXSSFWorkbook(1000).use { wb ->
+            wb.createSheet("人员信息").setRowGenerator { sheet ->
+                jdbcTemplate
+                    .queryForStream("SELECT * FROM person", ColumnMapRowMapper())
+                    .asSequence()
+                    .chunked(chunkSize)
+                    .forEachIndexed { chunkIndex, chunk ->
+                        // write data to excel
+                        for ((index, person) in chunk.withIndex()) {
+                            val row = sheet.createRow(chunkIndex * chunkSize + index)
+                            fillRow(row, person)
+                        }
+
+                        current += chunk.size
+                        val progress = (current * 99 / total)
+                        redisTemplate.convertAndSend("export:$taskId", progress.toString())
+                    }
+            }
+
+            // upload file to S3
+            FileOutputStream("data.xlsx").use { wb.write(it) }
+
+            sqlClient.update(ExportTask {
+                id = taskId
+                s3ObjectKey = "xxx"
+                finishedAt = Instant.now()
+                state = ExportState.COMPLETED
+            })
+        }
+
+        redisTemplate.convertAndSend("export:$taskId", "100")
     }
 
     private fun fillRow(row: Row, person: Map<String, Any>) {
