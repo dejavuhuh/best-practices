@@ -36,6 +36,15 @@ export default function ButtonUsage() {
     onError: () => alert('暂无数据，请先生成数据'),
   })
 
+  async function download(task: Task) {
+    const url = await wretch(`/api/export/url?taskId=${task.id}`).get().text()
+    const a = document.createElement('a')
+    a.download = `${task.downloadFileName}.xlsx`
+    a.href = url
+    a.click()
+    a.remove()
+  }
+
   return (
     <Stack direction="column" spacing={1}>
       <Stack direction="row" spacing={1}>
@@ -88,7 +97,7 @@ export default function ButtonUsage() {
                     : <TaskProgress taskId={row.id} onCompleted={refetch} />}
                 </TableCell>
                 <TableCell align="right">
-                  <Link underline="hover" href="#">下载</Link>
+                  <Link underline="hover" component="button" onClick={() => download(row)}>下载</Link>
                 </TableCell>
               </TableRow>
             ))}

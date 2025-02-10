@@ -140,4 +140,16 @@ class ExportController(
     fun tasks() = sqlClient.executeQuery(ExportTask::class) {
         select(table)
     }
+
+    @GetMapping("/url")
+    fun url(@RequestParam taskId: Long): String {
+        return minioClient.getPresignedObjectUrl(
+            GetPresignedObjectUrlArgs.builder()
+                .method(Method.GET)
+                .bucket("export")
+                .`object`("$taskId")
+                .expiry(5, TimeUnit.MINUTES)
+                .build()
+        )
+    }
 }
