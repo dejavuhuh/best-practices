@@ -1,14 +1,23 @@
+name: excel-export
 services:
+  minio:
+    image: minio/minio
+    ports:
+      - '9000:9000'
+    environment:
+      MINIO_ACCESS_KEY: accessKey
+      MINIO_SECRET_KEY: secretKey
+    command: server /data
   redis:
-    image: 'redis:latest'
+    image: redis
     ports:
       - '6379'
   postgres:
-    image: 'postgres:latest'
+    image: postgres
     environment:
-      - 'POSTGRES_DB=demo'
-      - 'POSTGRES_PASSWORD=demo'
-      - 'POSTGRES_USER=demo'
+      POSTGRES_DB: pg
+      POSTGRES_PASSWORD: pg
+      POSTGRES_USER: pg
     command: postgres -c 'max_connections=500'
     ports:
       - '5432'

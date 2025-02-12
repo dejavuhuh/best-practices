@@ -1,6 +1,8 @@
 package org.example
 
+import io.minio.BucketExistsArgs
 import io.minio.GetPresignedObjectUrlArgs
+import io.minio.MakeBucketArgs
 import io.minio.MinioClient
 import io.minio.http.Method
 import org.apache.poi.ss.usermodel.Row
@@ -20,6 +22,7 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 import kotlin.streams.asSequence
 
+
 @RestController
 @RequestMapping("/export")
 class ExportController(
@@ -29,10 +32,18 @@ class ExportController(
     val exportEventChannel: ExportEventChannel
 ) {
 
-    val minioClient: MinioClient = MinioClient.builder()
+    private val bucket = "export"
+    private val minioClient: MinioClient = MinioClient.builder()
         .endpoint("http://localhost:9000")
-        .credentials("uBuOzGYe7K9ebxM8uxkU", "5ePr46DXqaJlEE3pmjbxASHeAaJaNFjGjpgq5XyO")
+        .credentials("accessKey", "secretKey")
         .build()
+
+    init {
+        val found = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build())
+        if (!found) {
+            minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+        }
+    }
 
     data class AsyncExportRequest(
         val downloadFileName: String
@@ -62,9 +73,9 @@ class ExportController(
     private fun asyncRun(total: Long, taskId: Long) {
         var current = 0L
         val chunkSize = 10000
-        
 
-        DeferredSXSSFWorkbook(1000).use { wb ->
+
+        DeferredSXSSFWorkbook(chunkSize).use { wb ->
             wb.createSheet("人员信息").setRowGenerator { sheet ->
                 jdbcTemplate
                     .queryForStream("SELECT * FROM person", ColumnMapRowMapper())
@@ -87,7 +98,7 @@ class ExportController(
             val url = minioClient.getPresignedObjectUrl(
                 GetPresignedObjectUrlArgs.builder()
                     .method(Method.PUT)
-                    .bucket("export")
+                    .bucket(bucket)
                     .`object`("$taskId")
                     .expiry(5, TimeUnit.MINUTES)
                     .build()
@@ -150,7 +161,7 @@ class ExportController(
         return minioClient.getPresignedObjectUrl(
             GetPresignedObjectUrlArgs.builder()
                 .method(Method.GET)
-                .bucket("export")
+                .bucket(bucket)
                 .`object`("$taskId")
                 .expiry(5, TimeUnit.MINUTES)
                 .extraQueryParams(
